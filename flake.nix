@@ -17,7 +17,10 @@
           cargo
           openssl
           pkg-config
+          rust-analyzer
         ];
+
+        # PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
       };
 
       # packages.x86_64-linux.default = pkgs.callPackage ./pkg.nix {};
