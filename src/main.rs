@@ -1,5 +1,5 @@
 use core::str;
-use std::{fmt, process::Command, str::FromStr};
+use std::{process::Command, str::FromStr};
 
 use chrono_humanize::HumanTime;
 use serde::{Serialize, Deserialize};
