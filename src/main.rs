@@ -1,8 +1,10 @@
 use core::str;
-use std::process::Command;
+use std::{fmt, process::Command, str::FromStr};
 
 use chrono_humanize::HumanTime;
 use serde::{Serialize, Deserialize};
+
+use serde_json::json;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Task {
@@ -47,7 +49,7 @@ impl TaskFormatter {
         }
     }
 
-    fn format(self, task: &Task) -> String {
+    fn format(&self, task: &Task) -> String {
         let mut string_vec: Vec<String> = Vec::new();
 
         if self.urgency {
@@ -75,7 +77,7 @@ impl TaskFormatter {
         }
 
         if self.scheduled && task.scheduled.is_some() {
-            string_vec.push(format!("| scheduled {}", task.scheduled.as_ref().unwrap()));
+            string_vec.push(format!("| scheduled {}", format_time(task.scheduled.as_ref().unwrap())));
         }
 
         if self.running && task.start.is_some() {
@@ -130,10 +132,26 @@ fn get_running_tasks(tasks: &mut Vec<Task>) -> Vec<Task> {
     running_tasks
 }
 
+fn format_hover(tasks: &[Task]) -> String {
+    if tasks.len() == 0 {
+        return String::from_str("No more tasks").unwrap();
+    }
+    
+    let mut vec: Vec<String> = Vec::new();
+
+    let task_fmt = TaskFormatter::new(true);
+    
+    for task in tasks.into_iter() {
+        vec.push(format!("- {}", task_fmt.format(task)));
+    }
+
+    vec.join("\n")
+}
+
 fn main() {
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg("task export")
+    let output = Command::new("task")
+        .arg("export")
+        //.arg("task export")
         .output()
         .expect("failed to execute process");
 
@@ -148,19 +166,45 @@ fn main() {
             .filter(|entry| entry.status != "deleted" && entry.status != "completed")
             .collect();
 
-
+    tasks.sort_by(|a, b| b.urgency.total_cmp(&a.urgency)); // reversed ordering: big first
+    
     let running_tasks = get_running_tasks(&mut tasks);
 
     let mut task_fmt = TaskFormatter::new(false);
+
+    let return_json: serde_json::Value; 
 
     if running_tasks.len() > 0 {    
       task_fmt.description = true;
       task_fmt.id = true;
       task_fmt.running = true;
-      
-      let main_text = format!("Currently running task: {}", task_fmt.format(running_tasks.get(0).unwrap()));
-      println!("{}", main_text);
+
+      let main_text = format!("Current running task: {}", task_fmt.format(running_tasks.get(0).unwrap()));
+
+      return_json = json!({
+        "text": main_text,
+        "tooltip": format_hover(&tasks),
+      });
+
+      println!("{}", return_json);
+      return;
     }
 
-    println!("{:?}", tasks);
+    let mut string = String::from_str("No task found").unwrap();
+
+    if tasks.len() > 0 {
+        let most_urgent = tasks.remove(0);
+
+        task_fmt = TaskFormatter::new(true);
+        task_fmt.id = false;
+
+        string = format!("Most urgent task: {}", task_fmt.format(&most_urgent));
+    }
+
+    let output = json!({
+        "text": string,
+        "tooltip": format_hover(&tasks),
+    }).to_string();
+
+    println!("{}", output);
 }
