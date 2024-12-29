@@ -103,40 +103,21 @@ impl TaskFormatter {
     fn format_table(&self, tasks: &[Task]) -> String {
         let mut table = Table::new();
 
-        let mut headers: Vec<&str> = Vec::new();
+        let possible_headers = [
+          (self.urgency, "Priority"),
+          (self.tags, "Tags"),
+          (self.project, "Project"),
+          (self.description, "Description"),
+          (self.id, "ID"),
+          (self.due, "Due"),
+          (self.scheduled, "Scheduled"),
+          (self.running, "Running / Starting"),
+        ];
 
-        if self.urgency {
-            headers.push("Priority");
-        }
-
-        if self.tags {
-            headers.push("Tags");
-        }
-
-        if self.project {
-            headers.push("Project");
-        }
-
-        if self.description {
-            headers.push("Description");
-        }
-
-        if self.id {
-            headers.push("ID");
-        }
-
-        if self.due {
-            headers.push("Due");
-        }
-
-        if self.scheduled {
-            headers.push("Scheduled");
-        }
-
-        if self.running {
-            headers.push("Running / Starting");
-        }
-        
+        let headers: Vec<&str> = possible_headers
+            .iter()
+            .filter_map(|&(condition, header)| if condition { Some(header)} else { None })
+            .collect();
 
         table.add_row(Row::new(headers.into_iter().map(|entry| Cell::new(entry)).collect()));
 
@@ -330,7 +311,7 @@ fn main() {
         string = format!("Most urgent task: {}", task_fmt.format(&most_urgent));
     }
 
-    task_fmt = TaskFormatter::new(true);
+    // task_fmt = TaskFormatter::new(true);
     // task_fmt.id = false;
     // task_fmt.running = false;
 
