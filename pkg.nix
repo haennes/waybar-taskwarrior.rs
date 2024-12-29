@@ -10,7 +10,7 @@ rustPlatform.buildRustPackage {
 
   src = ./.;
 
-  cargoHash = "sha256-xyedScPgEjV6wNr78p07xEmdkRHNu25YSducXEHpkB8=";
+  cargoHash = "sha256-EvXD9aLFyY/M7y2W0uTpkJlQIZuNg1YpB+SaHYlwpyE=";
 
   meta = with lib; {
     description = "A program to export taskwarrior to waybar";

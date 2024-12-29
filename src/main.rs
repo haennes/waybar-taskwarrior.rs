@@ -3,6 +3,7 @@ use std::{process::Command, str::FromStr};
 
 use chrono::{DateTime, Local};
 use chrono_humanize::HumanTime;
+use prettytable::{Cell, Row, Table};
 use serde::{Serialize, Deserialize};
 
 use serde_json::json;
@@ -93,6 +94,119 @@ impl TaskFormatter {
         }
 
         string_vec.join(" ")
+    }
+
+    fn push_empty(vec: &mut Vec<String>){
+        vec.push(String::from_str("-").unwrap())
+    }
+
+    fn format_table(&self, tasks: &[Task]) -> String {
+        let mut table = Table::new();
+
+        let mut headers: Vec<&str> = Vec::new();
+
+        if self.urgency {
+            headers.push("Priority");
+        }
+
+        if self.tags {
+            headers.push("Tags");
+        }
+
+        if self.project {
+            headers.push("Project");
+        }
+
+        if self.description {
+            headers.push("Description");
+        }
+
+        if self.id {
+            headers.push("ID");
+        }
+
+        if self.due {
+            headers.push("Due");
+        }
+
+        if self.scheduled {
+            headers.push("Scheduled");
+        }
+
+        if self.running {
+            headers.push("Running / Starting");
+        }
+        
+
+        table.add_row(Row::new(headers.into_iter().map(|entry| Cell::new(entry)).collect()));
+
+        for task in tasks {
+            let mut data: Vec<String> = Vec::new();
+
+            if self.urgency {
+                data.push(format!("{}", task.urgency));
+            }
+
+            if self.tags {
+                if task.tags.is_none() {
+                    TaskFormatter::push_empty(&mut data);
+                } else {
+                    data.push(format!("[{}]", task.tags.as_ref().unwrap()));
+                }
+            }
+
+            if self.project {
+                if task.project.is_none() {
+                    TaskFormatter::push_empty(&mut data);
+                } else {
+                    data.push(format!("[{}]", task.project.as_ref().unwrap()));
+                }
+            }
+
+            if self.description {
+                data.push(task.description.clone());
+            }
+
+            if self.id {
+                data.push(task.id.to_string());
+            }
+
+            if self.due {
+                if task.due.is_none() {
+                    TaskFormatter::push_empty(&mut data);
+                } else {
+                    data.push(format_time(task.due.as_ref().unwrap()));
+                }
+            }
+
+            if self.scheduled {
+                if task.scheduled.is_none() {
+                    TaskFormatter::push_empty(&mut data);
+                } else {
+                    data.push(format_time(task.scheduled.as_ref().unwrap()));
+                }
+            }
+
+            if self.running {
+                if task.start.is_none() {
+                    TaskFormatter::push_empty(&mut data);
+                } else {
+                    
+                    let mut prefix = "running since";
+                    let date = convert_to_date(task.start.as_ref().unwrap());
+
+                    if date > Local::now() {
+                        prefix = "starting";
+                    }
+
+                    data.push(format!("| {} {}", prefix, format_time(task.start.as_ref().unwrap())));
+                }
+            }
+
+            table.add_row(Row::new(data.into_iter().map(|entry| Cell::new(&entry)).collect()));                
+        }
+
+        table.to_string()
     }
 }
 
@@ -216,9 +330,13 @@ fn main() {
         string = format!("Most urgent task: {}", task_fmt.format(&most_urgent));
     }
 
+    task_fmt = TaskFormatter::new(true);
+    task_fmt.id = false;
+    task_fmt.running = false;
+
     let output = json!({
         "text": string,
-        "tooltip": format_hover(&tasks),
+        "tooltip": task_fmt.format_table(&tasks),
     }).to_string();
 
     println!("{}", output);
