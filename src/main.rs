@@ -331,12 +331,13 @@ fn main() {
     }
 
     task_fmt = TaskFormatter::new(true);
-    task_fmt.id = false;
-    task_fmt.running = false;
+    // task_fmt.id = false;
+    // task_fmt.running = false;
 
     let output = json!({
         "text": string,
-        "tooltip": task_fmt.format_table(&tasks),
+        // "tooltip": task_fmt.format_table(&tasks),
+        "tooltip": format_hover(&tasks),
     }).to_string();
 
     println!("{}", output);
