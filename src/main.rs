@@ -1,6 +1,7 @@
 use core::str;
 use std::{process::Command, str::FromStr};
 
+use chrono::{DateTime, Local};
 use chrono_humanize::HumanTime;
 use serde::{Serialize, Deserialize};
 
@@ -81,14 +82,21 @@ impl TaskFormatter {
         }
 
         if self.running && task.start.is_some() {
-            string_vec.push(format!("| running since {}", format_time(task.start.as_ref().unwrap())));
+            let mut prefix = "running since";
+            let date = convert_to_date(task.start.as_ref().unwrap());
+
+            if date > Local::now() {
+                prefix = "starting";
+            }
+
+            string_vec.push(format!("| {} {}", prefix, format_time(task.start.as_ref().unwrap())));
         }
 
         string_vec.join(" ")
     }
 }
 
-fn format_time(input_time: &String) -> String {
+fn convert_to_date(input_time: &String) -> DateTime<Local> {
     let formatted_input = format!(
         "{}-{}-{}T{}:{}:{}Z",
         &input_time[0..4],  // Year
@@ -101,9 +109,16 @@ fn format_time(input_time: &String) -> String {
 
     let utc_time = chrono::DateTime::parse_from_rfc3339(&formatted_input).unwrap();
 
-    let local_time = utc_time.with_timezone(&chrono::Local); 
+    let local_time = utc_time.with_timezone(&chrono::Local);
 
-    let human_time = HumanTime::from(local_time);
+    local_time
+}
+
+fn format_time(input_time: &String) -> String {
+
+    let date = convert_to_date(input_time);
+
+    let human_time = HumanTime::from(date);
 
     human_time.to_string()
 }
