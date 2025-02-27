@@ -1,8 +1,4 @@
-{
-  rustPlatform,
-  lib,
-  ...
-}:
+{ rustPlatform, lib, ... }:
 
 rustPlatform.buildRustPackage {
   pname = "waybar-taskwarrior";
@@ -10,7 +6,9 @@ rustPlatform.buildRustPackage {
 
   src = ./.;
 
-  cargoHash = "sha256-EvXD9aLFyY/M7y2W0uTpkJlQIZuNg1YpB+SaHYlwpyE=";
+  cargoHash = "sha256-tBrYZooXYLWMBCMMat/aSqV6fZOcF74SxgBNtO7Vpdg=";
+
+  useFetchCargoVendor = true;
 
   meta = with lib; {
     description = "A program to export taskwarrior to waybar";
