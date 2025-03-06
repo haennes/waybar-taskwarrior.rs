@@ -59,7 +59,8 @@ impl TaskFormatter {
         }
 
         if self.tags && task.tags.is_some() {
-            string_vec.push(format!("[{}]", task.tags.as_ref().unwrap()));
+            let vec: Vec<String> = serde_json::from_value(task.tags.clone().unwrap()).unwrap();
+            string_vec.push(TaskFormatter::format_array(&vec));
         }
 
         if self.project && task.project.is_some() {
@@ -94,6 +95,15 @@ impl TaskFormatter {
         }
 
         string_vec.join(" ")
+    }
+
+    fn format_array(vec: &Vec<String>) -> String { 
+        let mut string = String::new();
+        string.push('{');
+        string.push_str(&format!("{}", vec.join(", ")));
+        string.push('}');
+        
+        string
     }
 
     fn push_empty(vec: &mut Vec<String>){
@@ -132,7 +142,8 @@ impl TaskFormatter {
                 if task.tags.is_none() {
                     TaskFormatter::push_empty(&mut data);
                 } else {
-                    data.push(format!("[{}]", task.tags.as_ref().unwrap()));
+                    let vec: Vec<String> = serde_json::from_value(task.tags.clone().unwrap()).unwrap();
+                    data.push(TaskFormatter::format_array(&vec));
                 }
             }
 
