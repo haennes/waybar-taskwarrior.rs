@@ -55,7 +55,7 @@ impl TaskFormatter {
         let mut string_vec: Vec<String> = Vec::new();
 
         if self.urgency {
-            string_vec.push(format!("(Prio: {:.2})", task.urgency));
+            string_vec.push(format!("({:.2})", task.urgency));
         }
 
         if self.tags && task.tags.is_some() {
