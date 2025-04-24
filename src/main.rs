@@ -319,7 +319,7 @@ fn main() {
         task_fmt = TaskFormatter::new(true);
         task_fmt.id = false;
 
-        string = format!("Most urgent task: {}", task_fmt.format(&most_urgent));
+        string = format!("{}", task_fmt.format(&most_urgent));
     }
 
     // task_fmt = TaskFormatter::new(true);
