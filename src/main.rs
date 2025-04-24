@@ -4,7 +4,7 @@ use std::{process::Command, str::FromStr};
 use chrono::{DateTime, Local};
 use chrono_humanize::HumanTime;
 use prettytable::{Cell, Row, Table};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use serde_json::json;
 
@@ -34,7 +34,7 @@ struct TaskFormatter {
     id: bool,
     due: bool,
     scheduled: bool,
-    running: bool, 
+    running: bool,
 }
 
 impl TaskFormatter {
@@ -80,7 +80,10 @@ impl TaskFormatter {
         }
 
         if self.scheduled && task.scheduled.is_some() {
-            string_vec.push(format!("| scheduled {}", format_time(task.scheduled.as_ref().unwrap())));
+            string_vec.push(format!(
+                "| scheduled {}",
+                format_time(task.scheduled.as_ref().unwrap())
+            ));
         }
 
         if self.running && task.start.is_some() {
@@ -91,22 +94,26 @@ impl TaskFormatter {
                 prefix = "starting";
             }
 
-            string_vec.push(format!("| {} {}", prefix, format_time(task.start.as_ref().unwrap())));
+            string_vec.push(format!(
+                "| {} {}",
+                prefix,
+                format_time(task.start.as_ref().unwrap())
+            ));
         }
 
         string_vec.join(" ")
     }
 
-    fn format_array(vec: &Vec<String>) -> String { 
+    fn format_array(vec: &Vec<String>) -> String {
         let mut string = String::new();
         string.push('{');
         string.push_str(&format!("{}", vec.join(", ")));
         string.push('}');
-        
+
         string
     }
 
-    fn push_empty(vec: &mut Vec<String>){
+    fn push_empty(vec: &mut Vec<String>) {
         vec.push(String::from_str("-").unwrap())
     }
 
@@ -114,22 +121,24 @@ impl TaskFormatter {
         let mut table = Table::new();
 
         let possible_headers = [
-          (self.urgency, "Priority"),
-          (self.tags, "Tags"),
-          (self.project, "Project"),
-          (self.description, "Description"),
-          (self.id, "ID"),
-          (self.due, "Due"),
-          (self.scheduled, "Scheduled"),
-          (self.running, "Running / Starting"),
+            (self.urgency, "Priority"),
+            (self.tags, "Tags"),
+            (self.project, "Project"),
+            (self.description, "Description"),
+            (self.id, "ID"),
+            (self.due, "Due"),
+            (self.scheduled, "Scheduled"),
+            (self.running, "Running / Starting"),
         ];
 
         let headers: Vec<&str> = possible_headers
             .iter()
-            .filter_map(|&(condition, header)| if condition { Some(header)} else { None })
+            .filter_map(|&(condition, header)| if condition { Some(header) } else { None })
             .collect();
 
-        table.add_row(Row::new(headers.into_iter().map(|entry| Cell::new(entry)).collect()));
+        table.add_row(Row::new(
+            headers.into_iter().map(|entry| Cell::new(entry)).collect(),
+        ));
 
         for task in tasks {
             let mut data: Vec<String> = Vec::new();
@@ -142,7 +151,8 @@ impl TaskFormatter {
                 if task.tags.is_none() {
                     TaskFormatter::push_empty(&mut data);
                 } else {
-                    let vec: Vec<String> = serde_json::from_value(task.tags.clone().unwrap()).unwrap();
+                    let vec: Vec<String> =
+                        serde_json::from_value(task.tags.clone().unwrap()).unwrap();
                     data.push(TaskFormatter::format_array(&vec));
                 }
             }
@@ -183,7 +193,6 @@ impl TaskFormatter {
                 if task.start.is_none() {
                     TaskFormatter::push_empty(&mut data);
                 } else {
-                    
                     let mut prefix = "running since";
                     let date = convert_to_date(task.start.as_ref().unwrap());
 
@@ -191,11 +200,17 @@ impl TaskFormatter {
                         prefix = "starting";
                     }
 
-                    data.push(format!("| {} {}", prefix, format_time(task.start.as_ref().unwrap())));
+                    data.push(format!(
+                        "| {} {}",
+                        prefix,
+                        format_time(task.start.as_ref().unwrap())
+                    ));
                 }
             }
 
-            table.add_row(Row::new(data.into_iter().map(|entry| Cell::new(&entry)).collect()));                
+            table.add_row(Row::new(
+                data.into_iter().map(|entry| Cell::new(&entry)).collect(),
+            ));
         }
 
         table.to_string()
@@ -205,12 +220,12 @@ impl TaskFormatter {
 fn convert_to_date(input_time: &String) -> DateTime<Local> {
     let formatted_input = format!(
         "{}-{}-{}T{}:{}:{}Z",
-        &input_time[0..4],  // Year
-        &input_time[4..6],  // Month
-        &input_time[6..8],  // Day
-        &input_time[9..11], // Hour
+        &input_time[0..4],   // Year
+        &input_time[4..6],   // Month
+        &input_time[6..8],   // Day
+        &input_time[9..11],  // Hour
         &input_time[11..13], // Minute
-        &input_time[13..15] // Second
+        &input_time[13..15]  // Second
     );
 
     let utc_time = chrono::DateTime::parse_from_rfc3339(&formatted_input).unwrap();
@@ -221,7 +236,6 @@ fn convert_to_date(input_time: &String) -> DateTime<Local> {
 }
 
 fn format_time(input_time: &String) -> String {
-
     let date = convert_to_date(input_time);
 
     let human_time = HumanTime::from(date);
@@ -243,11 +257,11 @@ fn get_running_tasks(tasks: &mut Vec<Task>) -> Vec<Task> {
     }
 
     for running_task in running_tasks.iter() {
-        let index = tasks.iter().position( |pos| pos.id == running_task.id );
+        let index = tasks.iter().position(|pos| pos.id == running_task.id);
 
         if index.is_some() {
             tasks.remove(index.unwrap());
-        } 
+        }
     }
 
     running_tasks
@@ -257,11 +271,11 @@ fn format_hover(tasks: &[Task]) -> String {
     if tasks.len() == 0 {
         return String::from_str("No more tasks").unwrap();
     }
-    
+
     let mut vec: Vec<String> = Vec::new();
 
     let task_fmt = TaskFormatter::new(true);
-    
+
     for task in tasks.into_iter() {
         vec.push(format!("- {}", task_fmt.format(task)));
     }
@@ -282,33 +296,36 @@ fn main() {
     };
 
     let mut tasks: Vec<Task> = serde_json::from_str::<Vec<Task>>(output)
-            .expect("Could not convert output string to json")
-            .into_iter()
-            .filter(|entry| entry.status != "deleted" && entry.status != "completed")
-            .collect();
+        .expect("Could not convert output string to json")
+        .into_iter()
+        .filter(|entry| entry.status != "deleted" && entry.status != "completed")
+        .collect();
 
     tasks.sort_by(|a, b| b.urgency.total_cmp(&a.urgency)); // reversed ordering: big first
-    
+
     let running_tasks = get_running_tasks(&mut tasks);
 
     let mut task_fmt = TaskFormatter::new(false);
 
-    let return_json: serde_json::Value; 
+    let return_json: serde_json::Value;
 
-    if running_tasks.len() > 0 {    
-      task_fmt.description = true;
-      task_fmt.id = true;
-      task_fmt.running = true;
+    if running_tasks.len() > 0 {
+        task_fmt.description = true;
+        task_fmt.id = true;
+        task_fmt.running = true;
 
-      let main_text = format!("Current running task: {}", task_fmt.format(running_tasks.get(0).unwrap()));
+        let main_text = format!(
+            "Current running task: {}",
+            task_fmt.format(running_tasks.get(0).unwrap())
+        );
 
-      return_json = json!({
-        "text": main_text,
-        "tooltip": format_hover(&tasks),
-      });
+        return_json = json!({
+          "text": main_text,
+          "tooltip": format_hover(&tasks),
+        });
 
-      println!("{}", return_json);
-      return;
+        println!("{}", return_json);
+        return;
     }
 
     let mut string = String::from_str("No task found").unwrap();
@@ -330,7 +347,8 @@ fn main() {
         "text": string,
         // "tooltip": task_fmt.format_table(&tasks),
         "tooltip": format_hover(&tasks),
-    }).to_string();
+    })
+    .to_string();
 
     println!("{}", output);
 }
