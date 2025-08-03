@@ -1,287 +1,15 @@
-use core::str;
-use std::{process::Command, str::FromStr};
+mod macros;
+mod task;
+mod task_formatter;
+mod task_parsing;
 
-use chrono::{DateTime, Local};
-use chrono_humanize::HumanTime;
-use prettytable::{Cell, Row, Table};
-use serde::{Deserialize, Serialize};
+use core::str;
+use itertools::Itertools;
+use std::process::Command;
 
 use serde_json::json;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Task {
-    id: i32,
-    description: String,
-    end: Option<String>,
-    entry: Option<String>,
-    modified: Option<String>,
-    priority: Option<String>,
-    status: String,
-    uuid: Option<String>,
-    tags: Option<serde_json::Value>,
-    urgency: f32,
-    due: Option<String>,
-    project: Option<String>,
-    scheduled: Option<String>,
-    start: Option<String>,
-}
-
-struct TaskFormatter {
-    urgency: bool,
-    tags: bool,
-    project: bool,
-    description: bool,
-    id: bool,
-    due: bool,
-    scheduled: bool,
-    running: bool,
-}
-
-impl TaskFormatter {
-    fn new(default: bool) -> TaskFormatter {
-        TaskFormatter {
-            urgency: default,
-            tags: default,
-            project: default,
-            description: default,
-            id: default,
-            due: default,
-            scheduled: default,
-            running: default,
-        }
-    }
-
-    fn format(&self, task: &Task) -> String {
-        let mut string_vec: Vec<String> = Vec::new();
-
-        if self.urgency {
-            string_vec.push(format!("({:.2})", task.urgency));
-        }
-
-        if self.tags && task.tags.is_some() {
-            let vec: Vec<String> = serde_json::from_value(task.tags.clone().unwrap()).unwrap();
-            string_vec.push(TaskFormatter::format_array(&vec));
-        }
-
-        if self.project && task.project.is_some() {
-            string_vec.push(format!("[{}]", task.project.as_ref().unwrap()));
-        }
-
-        if self.description {
-            string_vec.push(format!("'{}'", task.description))
-        }
-
-        if self.id {
-            string_vec.push(format!("(ID: {})", task.id));
-        }
-
-        if self.due && task.due.is_some() {
-            string_vec.push(format!("| due {}", format_time(task.due.as_ref().unwrap())));
-        }
-
-        if self.scheduled && task.scheduled.is_some() {
-            string_vec.push(format!(
-                "| scheduled {}",
-                format_time(task.scheduled.as_ref().unwrap())
-            ));
-        }
-
-        if self.running && task.start.is_some() {
-            let mut prefix = "running since";
-            let date = convert_to_date(task.start.as_ref().unwrap());
-
-            if date > Local::now() {
-                prefix = "starting";
-            }
-
-            string_vec.push(format!(
-                "| {} {}",
-                prefix,
-                format_time(task.start.as_ref().unwrap())
-            ));
-        }
-
-        string_vec.join(" ")
-    }
-
-    fn format_array(vec: &Vec<String>) -> String {
-        let mut string = String::new();
-        string.push('{');
-        string.push_str(&format!("{}", vec.join(", ")));
-        string.push('}');
-
-        string
-    }
-
-    fn push_empty(vec: &mut Vec<String>) {
-        vec.push(String::from_str("-").unwrap())
-    }
-
-    fn format_table(&self, tasks: &[Task]) -> String {
-        let mut table = Table::new();
-
-        let possible_headers = [
-            (self.urgency, "Priority"),
-            (self.tags, "Tags"),
-            (self.project, "Project"),
-            (self.description, "Description"),
-            (self.id, "ID"),
-            (self.due, "Due"),
-            (self.scheduled, "Scheduled"),
-            (self.running, "Running / Starting"),
-        ];
-
-        let headers: Vec<&str> = possible_headers
-            .iter()
-            .filter_map(|&(condition, header)| if condition { Some(header) } else { None })
-            .collect();
-
-        table.add_row(Row::new(
-            headers.into_iter().map(|entry| Cell::new(entry)).collect(),
-        ));
-
-        for task in tasks {
-            let mut data: Vec<String> = Vec::new();
-
-            if self.urgency {
-                data.push(format!("{}", task.urgency));
-            }
-
-            if self.tags {
-                if task.tags.is_none() {
-                    TaskFormatter::push_empty(&mut data);
-                } else {
-                    let vec: Vec<String> =
-                        serde_json::from_value(task.tags.clone().unwrap()).unwrap();
-                    data.push(TaskFormatter::format_array(&vec));
-                }
-            }
-
-            if self.project {
-                if task.project.is_none() {
-                    TaskFormatter::push_empty(&mut data);
-                } else {
-                    data.push(format!("[{}]", task.project.as_ref().unwrap()));
-                }
-            }
-
-            if self.description {
-                data.push(task.description.clone());
-            }
-
-            if self.id {
-                data.push(task.id.to_string());
-            }
-
-            if self.due {
-                if task.due.is_none() {
-                    TaskFormatter::push_empty(&mut data);
-                } else {
-                    data.push(format_time(task.due.as_ref().unwrap()));
-                }
-            }
-
-            if self.scheduled {
-                if task.scheduled.is_none() {
-                    TaskFormatter::push_empty(&mut data);
-                } else {
-                    data.push(format_time(task.scheduled.as_ref().unwrap()));
-                }
-            }
-
-            if self.running {
-                if task.start.is_none() {
-                    TaskFormatter::push_empty(&mut data);
-                } else {
-                    let mut prefix = "running since";
-                    let date = convert_to_date(task.start.as_ref().unwrap());
-
-                    if date > Local::now() {
-                        prefix = "starting";
-                    }
-
-                    data.push(format!(
-                        "| {} {}",
-                        prefix,
-                        format_time(task.start.as_ref().unwrap())
-                    ));
-                }
-            }
-
-            table.add_row(Row::new(
-                data.into_iter().map(|entry| Cell::new(&entry)).collect(),
-            ));
-        }
-
-        table.to_string()
-    }
-}
-
-fn convert_to_date(input_time: &String) -> DateTime<Local> {
-    let formatted_input = format!(
-        "{}-{}-{}T{}:{}:{}Z",
-        &input_time[0..4],   // Year
-        &input_time[4..6],   // Month
-        &input_time[6..8],   // Day
-        &input_time[9..11],  // Hour
-        &input_time[11..13], // Minute
-        &input_time[13..15]  // Second
-    );
-
-    let utc_time = chrono::DateTime::parse_from_rfc3339(&formatted_input).unwrap();
-
-    let local_time = utc_time.with_timezone(&chrono::Local);
-
-    local_time
-}
-
-fn format_time(input_time: &String) -> String {
-    let date = convert_to_date(input_time);
-
-    let human_time = HumanTime::from(date);
-
-    human_time.to_string()
-}
-
-// If not modification of Vec<...> is done, use [...] (Slice) instead
-/*
- * Modifies the tasks vec to remove running tasks and return the running tasks
- */
-fn get_running_tasks(tasks: &mut Vec<Task>) -> Vec<Task> {
-    let mut running_tasks: Vec<Task> = Vec::new();
-
-    for task in tasks.into_iter() {
-        if task.start.is_some() {
-            running_tasks.push(task.clone());
-        }
-    }
-
-    for running_task in running_tasks.iter() {
-        let index = tasks.iter().position(|pos| pos.id == running_task.id);
-
-        if index.is_some() {
-            tasks.remove(index.unwrap());
-        }
-    }
-
-    running_tasks
-}
-
-fn format_hover(tasks: &[Task]) -> String {
-    if tasks.len() == 0 {
-        return String::from_str("No more tasks").unwrap();
-    }
-
-    let mut vec: Vec<String> = Vec::new();
-
-    let task_fmt = TaskFormatter::new(true);
-
-    for task in tasks.into_iter() {
-        vec.push(format!("- {}", task_fmt.format(task)));
-    }
-
-    vec.join("\n")
-}
+use crate::{task::Task, task_formatter::TaskFormatter, task_parsing::TaskParsing};
 
 fn main() {
     let output = Command::new("task")
@@ -295,60 +23,60 @@ fn main() {
         Err(_) => panic!("Could not decode task export output"),
     };
 
-    let mut tasks: Vec<Task> = serde_json::from_str::<Vec<Task>>(output)
+    let mut tasks = serde_json::from_str::<Vec<TaskParsing>>(output)
         .expect("Could not convert output string to json")
         .into_iter()
-        .filter(|entry| entry.status != "deleted" && entry.status != "completed")
-        .collect();
+        .map(TryInto::try_into)
+        .process_results(|e| {
+            e.filter(|entry: &Task| !entry.status.hidden())
+                .sorted_by(|a, b| b.urgency.total_cmp(&a.urgency))
+        })
+        .expect("Found invalid task"); // reversed ordering: big first
 
-    tasks.sort_by(|a, b| b.urgency.total_cmp(&a.urgency)); // reversed ordering: big first
+    let most_urgent = tasks.next();
+    let (running_tasks, non_running_tasks): (Vec<_>, Vec<_>) =
+        tasks.partition(|elem| elem.start.is_some());
 
-    let running_tasks = get_running_tasks(&mut tasks);
+    let mut tooltip = "".to_string();
+    if !running_tasks.is_empty() {
+        let fmt = TaskFormatter::new(false)
+            .with_description()
+            .with_project()
+            .with_due()
+            .with_running()
+            .with_scheduled();
 
-    let mut task_fmt = TaskFormatter::new(false);
-
-    let return_json: serde_json::Value;
-
-    if running_tasks.len() > 0 {
-        task_fmt.description = true;
-        task_fmt.id = true;
-        task_fmt.running = true;
-
-        let main_text = format!(
-            "Current running task: {}",
-            task_fmt.format(running_tasks.get(0).unwrap())
-        );
-
-        return_json = json!({
-          "text": main_text,
-          "tooltip": format_hover(&tasks),
-        });
-
-        println!("{}", return_json);
-        return;
+        tooltip += "Running Tasks: \n";
+        tooltip += &running_tasks
+            .iter()
+            .map(|t| format!("+{}", fmt.format(t)))
+            .join("\n");
+        tooltip += "\n \n";
+    }
+    if !non_running_tasks.is_empty() {
+        let fmt = TaskFormatter::new(false)
+            .with_description()
+            .with_due()
+            .with_project()
+            .with_running()
+            .with_scheduled();
+        tooltip += "Non Running Tasks: \n";
+        tooltip += &non_running_tasks
+            .iter()
+            .map(|t| format!("-{}", fmt.format(t)))
+            .join("\n");
     }
 
-    let mut string = String::from_str("No task found").unwrap();
-
-    if tasks.len() > 0 {
-        let most_urgent = tasks.remove(0);
-
-        task_fmt = TaskFormatter::new(true);
-        task_fmt.id = false;
-
-        string = format!("{}", task_fmt.format(&most_urgent));
-    }
-
-    // task_fmt = TaskFormatter::new(true);
-    // task_fmt.id = false;
-    // task_fmt.running = false;
+    let preview = match most_urgent {
+        Some(most_urgent) => TaskFormatter::new(true).without_id().format(&most_urgent),
+        None => "No task found".to_string(),
+    };
 
     let output = json!({
-        "text": string,
-        // "tooltip": task_fmt.format_table(&tasks),
-        "tooltip": format_hover(&tasks),
+        "text": preview,
+        "tooltip": tooltip,
     })
     .to_string();
 
-    println!("{}", output);
+    println!("{output}");
 }

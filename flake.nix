@@ -3,17 +3,21 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
-  };
+
+ rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };  };
 
   outputs =
-    { self, nixpkgs }@inputs:
+    { self, nixpkgs, rust-overlay }@inputs:
     let
-      pkgs = import nixpkgs { system = "x86_64-linux"; };
+      pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [(import rust-overlay)];};
     in
     {
       devShells.x86_64-linux.default = pkgs.mkShell {
         nativeBuildInputs = with pkgs; [
-          rustc
+          rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)
           cargo
           openssl
           pkg-config
