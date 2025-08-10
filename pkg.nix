@@ -15,8 +15,6 @@ rustPlatform.buildRustPackage {
 
   cargoHash = "sha256-C8XIJtS10w4tfbK1weKxy8XfXTKfnjZMYQaXaVtk4qU=";
 
-  useFetchCargoVendor = true;
-
   meta = with lib; {
     description = "A program to export taskwarrior to waybar";
     license = licenses.gpl2;
