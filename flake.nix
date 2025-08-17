@@ -17,7 +17,7 @@
     {
       devShells.x86_64-linux.default = pkgs.mkShell {
         nativeBuildInputs = with pkgs; [
-          rust-bin.selectLatestNightlyWith (toolchain: toolchain.default)
+          (rust-bin.selectLatestNightlyWith (toolchain: toolchain.default))
           cargo
           openssl
           pkg-config
