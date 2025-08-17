@@ -57,7 +57,7 @@ impl TaskFormatter {
             proj = self.format_project(task),
             tags = {
                 if self.tags && !task.tags.is_empty() {
-                    TaskFormatter::format_array(&task.tags)
+                    " ".to_string() + &TaskFormatter::format_array(&task.tags)
                 } else {
                     "".to_string()
                 }
